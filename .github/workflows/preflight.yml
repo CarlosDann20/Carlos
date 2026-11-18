@@ -1,0 +1,25 @@
+name: Preflight (diagnóstico de runners)
+
+# Diagnóstico mínimo: comprueba si los runners de Linux y de macOS arrancan
+# para esta cuenta. No compila nada; solo imprime versiones.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/amazing-pasteur-7bczc8"]
+    paths: [".github/workflows/preflight.yml"]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Linux runner OK"
+          uname -a
+  macos:
+    runs-on: macos-14
+    steps:
+      - run: |
+          echo "macOS runner OK"
+          sw_vers
+          xcodebuild -version || true
