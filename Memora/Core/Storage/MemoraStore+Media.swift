@@ -47,7 +47,7 @@ extension MemoraStore {
                 result.skippedIdentical += 1
                 return name
             }
-            if let existingItem = try mediaItem(filename: name), existingItem.sha1 == sha {
+            if let existingItem = try mediaItem(filename: name), existingItem.sha1Hex == sha {
                 result.skippedIdentical += 1
                 return name
             }

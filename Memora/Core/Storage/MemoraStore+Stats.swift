@@ -52,7 +52,7 @@ extension MemoraStore {
         let clock = try dayClock()
         let start = clock.startEpoch(ofDay: clock.today(now: now))
         var stats = TodayStats()
-        try db.query("""
+        _ = try db.query("""
             SELECT rating, state_before, time_ms, card_id FROM revlog
             WHERE reviewed_at >= ? AND reviewed_at <= ?
             """, [.integer(start), .integer(now)]) { row -> Void in
@@ -82,7 +82,7 @@ extension MemoraStore {
             buckets[d] = DayBucket(dayNumber: d, startEpoch: clock.startEpoch(ofDay: d),
                                    reviews: 0, timeMS: 0, correct: 0, newCards: 0)
         }
-        try db.query("""
+        _ = try db.query("""
             SELECT reviewed_at, time_ms, rating, state_before FROM revlog WHERE reviewed_at >= ?
             """, [.integer(windowStart)]) { row -> Void in
             let day = clock.dayNumber(for: row.int(0))
@@ -105,7 +105,7 @@ extension MemoraStore {
             values = deckIDs.map { .integer($0) }
         }
         sql += " GROUP BY state, suspended, (ivl >= 21)"
-        try db.query(sql, values) { row -> Void in
+        _ = try db.query(sql, values) { row -> Void in
             let state = Int(row.int(0))
             let suspended = row.int(1) != 0
             let ivl = Int(row.int(2))
@@ -128,7 +128,7 @@ extension MemoraStore {
         let end = clock.startEpoch(ofDay: today + days + 1)
         var buckets = [Int: Int]()
         for d in 0...days { buckets[d] = 0 }
-        try db.query("""
+        _ = try db.query("""
             SELECT due FROM cards WHERE state IN (1,2,3) AND suspended = 0 AND bury = 0 AND due < ?
             """, [.integer(end)]) { row -> Void in
             let offset = max(0, clock.dayNumber(for: row.int(0)) - today)
