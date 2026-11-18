@@ -32,9 +32,11 @@ final class StudyViewModel: ObservableObject {
     @Published var warnings: [String] = []
     @Published var deckName = ""
     @Published var waitingMessage: String?
+    @Published var showIntervals = true
 
     private var store: MemoraStore!
     private let deckID: Int64
+    private let ignoreLimits: Bool
     private var deckIDs: [Int64] = []
     private var config = DeckConfig.makeDefault()
     private var scheduler: ReviewScheduler!
@@ -47,8 +49,9 @@ final class StudyViewModel: ObservableObject {
     private var answerShownAt = Date()
     private var undoStack: [Snapshot] = []
 
-    init(deckID: Int64) {
+    init(deckID: Int64, ignoreLimits: Bool = false) {
         self.deckID = deckID
+        self.ignoreLimits = ignoreLimits
     }
 
     func configure(store: MemoraStore) {
@@ -62,8 +65,11 @@ final class StudyViewModel: ObservableObject {
             deckName = deck.leafName
             deckIDs = try store.descendantDeckIDs(of: deck)
             config = try store.config(for: deck)
+            showIntervals = config.showIntervalsOnButtons
             clock = try store.dayClock()
             scheduler = ReviewScheduler(config: config, dayClock: clock)
+            // Reset siblings buried in a previous session so they can reappear.
+            try? store.clearSiblingBury(deckIDs: deckIDs)
             let now = Int64(Date().timeIntervalSince1970)
             let startToday = clock.startEpoch(ofDay: clock.today(now: now))
             newDone = try store.newIntroducedToday(deckIDs: deckIDs, start: startToday, now: now)
@@ -76,6 +82,8 @@ final class StudyViewModel: ObservableObject {
         do {
             let now = Int64(Date().timeIntervalSince1970)
             let endToday = clock.endOfTodayEpoch(now: now)
+            // "Study ahead" widens the review horizon to the next few days.
+            let reviewHorizon = ignoreLimits ? now + 3 * 86_400 : endToday
             refreshRemaining(now: now)
 
             // 1) Learning / relearning due now.
@@ -84,7 +92,7 @@ final class StudyViewModel: ObservableObject {
                 return
             }
             // 2) Interleave reviews and new cards.
-            let reviewCard = reviewRemaining > 0 ? try store.nextReviewCard(deckIDs: deckIDs, endOfToday: endToday, order: config.reviewCardOrder) : nil
+            let reviewCard = reviewRemaining > 0 ? try store.nextReviewCard(deckIDs: deckIDs, endOfToday: reviewHorizon, order: config.reviewCardOrder) : nil
             let newCard = newRemaining > 0 ? try store.nextNewCard(deckIDs: deckIDs, order: config.newCardOrder) : nil
 
             let chosen: Card?
@@ -141,6 +149,10 @@ final class StudyViewModel: ObservableObject {
                                      nowMillis: store.nextID(), timeMS: elapsedMS)
         do {
             try store.commit(result, leechAction: config.leechAction)
+            if config.buryNewSiblings || config.buryReviewSiblings {
+                try? store.burySiblings(ofNote: card.noteID, excluding: card.id,
+                                        buryNew: config.buryNewSiblings, buryReview: config.buryReviewSiblings)
+            }
             undoStack.append(Snapshot(card: card, logID: result.log.id, wasNew: wasNew, wasReview: wasReview))
             if undoStack.count > 50 { undoStack.removeFirst() }
             canUndo = true
@@ -156,6 +168,7 @@ final class StudyViewModel: ObservableObject {
         do {
             try store.deleteRevlog(id: snap.logID)
             try store.saveCard(snap.card)
+            try? store.unburySiblings(ofNote: snap.card.noteID)
             if snap.wasNew { newDone = max(0, newDone - 1) }
             if snap.wasReview { reviewDone = max(0, reviewDone - 1) }
             answeredThisSession = max(0, answeredThisSession - 1)
@@ -167,8 +180,13 @@ final class StudyViewModel: ObservableObject {
     }
 
     private func refreshRemaining(now: Int64) {
-        newRemaining = max(0, config.newPerDay - newDone)
-        reviewRemaining = max(0, config.reviewsPerDay - reviewDone)
+        if ignoreLimits {
+            newRemaining = 100_000
+            reviewRemaining = 100_000
+        } else {
+            newRemaining = max(0, config.newPerDay - newDone)
+            reviewRemaining = max(0, config.reviewsPerDay - reviewDone)
+        }
         learningCount = (try? Int(store.db.scalarInt(
             "SELECT COUNT(*) FROM cards WHERE deck_id IN (\(deckIDs.map { _ in "?" }.joined(separator: ","))) AND state IN (1,3) AND suspended = 0 AND bury = 0",
             deckIDs.map { .integer($0) }))) ?? 0

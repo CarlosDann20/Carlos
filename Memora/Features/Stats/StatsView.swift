@@ -109,16 +109,16 @@ struct StatsView: View {
         Panel {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Distribución de tarjetas").font(.headline).foregroundStyle(Theme.textPrimary)
-                let items: [(String, Int, Color)] = [
-                    ("Nuevas", vm.distribution.new, Theme.newCard),
-                    ("Aprendiendo", vm.distribution.learning + vm.distribution.relearning, Theme.learnCard),
-                    ("Jóvenes", vm.distribution.youngReview, Theme.good.opacity(0.7)),
-                    ("Maduras", vm.distribution.matureReview, Theme.good),
-                    ("Suspendidas", vm.distribution.suspended, Theme.textTertiary)
+                let items: [DistItem] = [
+                    DistItem(label: "Nuevas", count: vm.distribution.new, color: Theme.newCard),
+                    DistItem(label: "Aprendiendo", count: vm.distribution.learning + vm.distribution.relearning, color: Theme.learnCard),
+                    DistItem(label: "Jóvenes", count: vm.distribution.youngReview, color: Theme.good.opacity(0.7)),
+                    DistItem(label: "Maduras", count: vm.distribution.matureReview, color: Theme.good),
+                    DistItem(label: "Suspendidas", count: vm.distribution.suspended, color: Theme.textTertiary)
                 ]
-                Chart(items, id: \.0) { item in
-                    BarMark(x: .value("Cantidad", item.1), y: .value("Tipo", item.0))
-                        .foregroundStyle(item.2)
+                Chart(items) { item in
+                    BarMark(x: .value("Cantidad", item.count), y: .value("Tipo", item.label))
+                        .foregroundStyle(item.color)
                 }
                 .frame(height: 180)
                 Text("Total: \(vm.distribution.total) tarjetas").font(.caption).foregroundStyle(Theme.textSecondary)
@@ -160,6 +160,13 @@ struct StatsView: View {
         default: return Theme.good
         }
     }
+}
+
+struct DistItem: Identifiable {
+    let id = UUID()
+    let label: String
+    let count: Int
+    let color: Color
 }
 
 struct MiniStat: View {

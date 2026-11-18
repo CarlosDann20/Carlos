@@ -73,6 +73,39 @@ extension MemoraStore {
         try db.run("DELETE FROM revlog WHERE id = ?", [.integer(id)])
     }
 
+    // MARK: - Sibling burying
+
+    /// Bury the other cards of a note so siblings don't appear the same session
+    /// (Anki's "bury siblings"). Only new and/or review siblings, per config.
+    public func burySiblings(ofNote noteID: Int64, excluding cardID: Int64,
+                             buryNew: Bool, buryReview: Bool) throws {
+        var states: [Int] = []
+        if buryNew { states.append(CardState.new.rawValue) }
+        if buryReview { states.append(CardState.review.rawValue) }
+        guard !states.isEmpty else { return }
+        let statesSQL = states.map(String.init).joined(separator: ",")
+        try db.run("""
+            UPDATE cards SET bury = \(BuryState.sibling.rawValue)
+            WHERE note_id = ? AND id != ? AND suspended = 0 AND bury = 0 AND state IN (\(statesSQL))
+            """, [.integer(noteID), .integer(cardID)])
+    }
+
+    /// Un-bury the siblings of a note (used when undoing an answer).
+    public func unburySiblings(ofNote noteID: Int64) throws {
+        try db.run("UPDATE cards SET bury = 0 WHERE note_id = ? AND bury = \(BuryState.sibling.rawValue)",
+                   [.integer(noteID)])
+    }
+
+    /// Clear sibling-buried cards in the given decks (called when a study
+    /// session starts, so siblings buried in a previous session reappear).
+    /// Manually buried cards (bury = manual) are left untouched.
+    public func clearSiblingBury(deckIDs: [Int64]) throws {
+        guard !deckIDs.isEmpty else { return }
+        let ph = deckIDs.map { _ in "?" }.joined(separator: ",")
+        try db.run("UPDATE cards SET bury = 0 WHERE bury = \(BuryState.sibling.rawValue) AND deck_id IN (\(ph))",
+                   deckIDs.map { .integer($0) })
+    }
+
     // MARK: - Manual note creation
 
     /// Create a note and generate its cards. For standard note types a card is

@@ -15,6 +15,7 @@ struct DeckDetailView: View {
     @State private var deck: Deck?
     @State private var counts = DeckCounts()
     @State private var showStudy = false
+    @State private var studyAhead = false
     @State private var showBrowser = false
     @State private var showStats = false
     @State private var showOptions = false
@@ -38,7 +39,7 @@ struct DeckDetailView: View {
         .onAppear(perform: reload)
         .onChange(of: env.dataVersion) { _, _ in reload() }
         .fullScreenCover(isPresented: $showStudy, onDismiss: reload) {
-            StudyView(deckID: deckID)
+            StudyView(deckID: deckID, ignoreLimits: studyAhead)
         }
         .sheet(isPresented: $showBrowser) { CardBrowserView(deckID: deckID) }
         .sheet(isPresented: $showStats) { StatsView(deckID: deckID) }
@@ -79,11 +80,12 @@ struct DeckDetailView: View {
 
     private var studyButton: some View {
         Button {
+            studyAhead = dueTotal == 0
             showStudy = true
         } label: {
             HStack {
                 Image(systemName: "play.fill")
-                Text(dueTotal > 0 ? "Estudiar ahora (\(dueTotal))" : "Repasar de todos modos")
+                Text(dueTotal > 0 ? "Estudiar ahora (\(dueTotal))" : "Estudiar de todos modos (adelantar)")
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)

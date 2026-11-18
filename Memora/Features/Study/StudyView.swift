@@ -15,9 +15,9 @@ struct StudyView: View {
     @StateObject private var vm: StudyViewModel
     let deckID: Int64
 
-    init(deckID: Int64) {
+    init(deckID: Int64, ignoreLimits: Bool = false) {
         self.deckID = deckID
-        _vm = StateObject(wrappedValue: StudyViewModel(deckID: deckID))
+        _vm = StateObject(wrappedValue: StudyViewModel(deckID: deckID, ignoreLimits: ignoreLimits))
     }
 
     var body: some View {
@@ -109,7 +109,9 @@ struct StudyView: View {
         Button { vm.answer(rating) } label: {
             VStack(spacing: 3) {
                 Text(rating.localizedTitle).font(.subheadline.weight(.semibold))
-                Text(vm.intervalLabel(for: rating)).font(.caption2).opacity(0.9)
+                if vm.showIntervals {
+                    Text(vm.intervalLabel(for: rating)).font(.caption2).opacity(0.9)
+                }
             }
             .frame(maxWidth: .infinity).padding(.vertical, 12)
             .background(Theme.ratingColor(rating).opacity(0.18))
