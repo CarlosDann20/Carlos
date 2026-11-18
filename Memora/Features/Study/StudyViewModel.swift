@@ -98,8 +98,7 @@ final class StudyViewModel: ObservableObject {
                 return
             }
             // 3) Nothing available now — is something in learning due later today?
-            let soon = try store.nextLearningCard(deckIDs: deckIDs, now: endToday)
-            if let soon, let due = Optional(soon.due), due > now {
+            if let soon = try store.nextLearningCard(deckIDs: deckIDs, now: endToday), soon.due > now {
                 waitingMessage = "Has terminado las tarjetas disponibles ahora. Quedan \(learningCount) en aprendizaje; vuelve en unos minutos."
             }
             finished = true
