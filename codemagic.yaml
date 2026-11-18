@@ -7,17 +7,16 @@
 #
 # Cómo activarlo (una vez):
 #   1. Entra en https://codemagic.io e inicia sesión con GitHub.
-#   2. "Add application" → elige el repositorio CarlosDann20/Carlos.
+#   2. "Add application" → proveedor GitHub → repositorio: CarlosDann20/Carlos
 #   3. Codemagic detecta este codemagic.yaml. Lanza el workflow "build-test".
-# No se guardan secretos en el repositorio: las claves de firma se configuran en
-# la interfaz de Codemagic (Code signing identities / Environment variables).
+# No se guardan secretos en el repositorio.
 
 workflows:
 
   build-test:
-    name: Memora · compilar y probar (Simulador, sin firma)
+    name: Memora · compilar, probar y empaquetar (sin cuenta Apple)
     instance_type: mac_mini_m2        # plan gratuito
-    max_build_duration: 45
+    max_build_duration: 60
     environment:
       xcode: latest
     triggering:
@@ -29,33 +28,61 @@ workflows:
     scripts:
       - name: Instalar XcodeGen
         script: brew install xcodegen
+
       - name: Generar el proyecto Xcode
         script: xcodegen generate
-      - name: Compilar y ejecutar pruebas (Simulador iOS)
+
+      - name: 1) Compilar (build-for-testing)
         script: |
           set -o pipefail
-          UDID=$(xcrun simctl list devices available --json | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)['devices']
-          c=[x for v in d.values() for x in v if x.get('isAvailable') and ('iPad' in x['name'] or 'iPhone' in x['name'])]
-          c.sort(key=lambda x:(0 if 'iPad' in x['name'] else 1))
-          print(c[0]['udid'])
-          ")
-          xcodebuild test \
+          xcodebuild build-for-testing \
+            -project Memora.xcodeproj \
+            -scheme Memora \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
+
+      - name: 2) Ejecutar las pruebas XCTest
+        script: |
+          set -o pipefail
+          UDID=$(xcrun simctl list devices available --json | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; c=[x for v in d.values() for x in v if x.get('isAvailable') and ('iPad' in x['name'] or 'iPhone' in x['name'])]; c.sort(key=lambda x:(0 if 'iPad' in x['name'] else 1)); print(c[0]['udid'])")
+          echo "Simulador: $UDID"
+          xcodebuild test-without-building \
             -project Memora.xcodeproj \
             -scheme Memora \
             -destination "id=$UDID" \
+            -derivedDataPath build/dd \
             -resultBundlePath build/Memora.xcresult \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | xcpretty && exit ${PIPESTATUS[0]}
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee test.log
+
+      - name: 3) Empaquetar .app SIN firmar para iPad (sideloading)
+        script: |
+          set -o pipefail
+          xcodebuild build \
+            -project Memora.xcodeproj \
+            -scheme Memora \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build/device \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build-device.log
+          APP=$(find build/device/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -1)
+          echo "App sin firmar: $APP"
+          rm -rf Payload Memora-unsigned.ipa
+          mkdir Payload && cp -R "$APP" Payload/
+          zip -qr Memora-unsigned.ipa Payload
+          ls -la Memora-unsigned.ipa
     artifacts:
-      - build/Memora.xcresult
       - build.log
+      - test.log
+      - build-device.log
+      - build/Memora.xcresult
+      - Memora-unsigned.ipa
 
   # ---------------------------------------------------------------------------
-  # Workflow de TestFlight (requiere Apple Developer Program y configurar la
-  # clave de App Store Connect EN CODEMAGIC, no en el repositorio).
-  # Pasos: Codemagic → Teams/App settings → Code signing identities → App Store
-  # Connect API key (Key ID, Issuer ID, archivo .p8). Luego lanza este workflow.
+  # Workflow de TestFlight (NO usar todavía). Requiere Apple Developer Program y
+  # configurar la clave de App Store Connect EN CODEMAGIC (no en el repo):
+  # Codemagic → Teams/App settings → Code signing identities → App Store Connect
+  # API key (Key ID, Issuer ID, archivo .p8). Luego lanza este workflow.
   # ---------------------------------------------------------------------------
   testflight:
     name: Memora · TestFlight (requiere cuenta Apple de pago)
