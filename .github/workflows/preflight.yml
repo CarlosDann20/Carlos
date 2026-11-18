@@ -1,7 +1,7 @@
 name: Preflight (diagnóstico de runners)
 
-# Diagnóstico mínimo: comprueba si los runners de Linux y de macOS arrancan
-# para esta cuenta. No compila nada; solo imprime versiones.
+# Diagnóstico: ¿qué runners arrancan para esta cuenta? Prueba Linux y varias
+# imágenes de macOS. No compila nada.
 
 on:
   workflow_dispatch:
@@ -13,13 +13,16 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo "Linux runner OK"
-          uname -a
+      - run: echo "Linux runner OK"; uname -a
+
   macos:
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [macos-13, macos-14, macos-15, macos-latest]
+    runs-on: ${{ matrix.image }}
     steps:
       - run: |
-          echo "macOS runner OK"
+          echo "macOS runner OK: ${{ matrix.image }}"
           sw_vers
           xcodebuild -version || true
