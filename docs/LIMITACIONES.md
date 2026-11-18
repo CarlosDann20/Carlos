@@ -39,10 +39,13 @@ antes de confiar en él para migraciones críticas. Detalles conocidos:
   de 65.535 entradas de medios podrían necesitar dividir la exportación.
 
 ## 4. Programación: paridad con Anki
-FSRS‑6 y SM‑2 son **reales** y FSRS está validado 1:1 con py‑fsrs. Sin embargo,
-Memora **no replica bit a bit toda la cola de Anki** (orden exacto de
-intercalado, enterrado automático de hermanas en cada respuesta, estudio
-filtrado avanzado). Al importar desde Anki se conserva el estado por tarjeta
+FSRS‑6 y SM‑2 son **reales** y FSRS está validado 1:1 con py‑fsrs. El
+**enterrado de hermanas** (bury siblings) está implementado: al responder una
+tarjeta se posponen sus hermanas según la configuración del mazo, y se reponen al
+iniciar una nueva sesión de ese mazo (en lugar de exactamente al corte diario
+como en Anki; es una aproximación simple y segura). Aun así, Memora **no replica
+bit a bit toda la cola de Anki** (orden exacto de intercalado, estudio filtrado
+avanzado). Al importar desde Anki se conserva el estado por tarjeta
 (incluido FSRS `s`/`d`); los **parámetros FSRS** del mazo se ponen a los valores
 por defecto (no se leen del paquete), así que, si venías optimizando parámetros en
 Anki, conviene **reoptimizar** o ajustarlos. El `left` de aprendizaje de Anki se

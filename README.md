@@ -71,7 +71,8 @@ CocoaPods, SPM remoto ni ninguna dependencia de terceros.
 Aunque no hay Swift aquí, sí se validó la lógica más delicada:
 
 ```bash
-python3 scripts/validate_fsrs.py     # FSRS‑6 vs py‑fsrs (referencia)  -> 44/44 OK
+python3 scripts/validate_fsrs.py     # FSRS‑6 vs py‑fsrs (referencia)  -> 54/54 OK
+python3 scripts/validate_sm2.py      # SM‑2: fórmula EF y expectativas de las pruebas
 python3 scripts/make_apkg.py         # genera fixtures .apkg reales
 python3 scripts/validate_import.py   # verifica el manejo del formato .apkg
 ```

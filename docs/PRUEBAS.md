@@ -21,9 +21,11 @@ referencia **py‑fsrs** sobre varias secuencias de calificaciones y separacione
 temporales. Compara **estado, estabilidad, dificultad e intervalo**.
 
 ```
-Checks: 44, mismatches: 0
+Checks: 54, mismatches: 0
 PASS: Swift FSRS-6 port matches py-fsrs reference exactly.
 ```
+La secuencia exacta embebida en `FSRSSchedulerTests.testGoldenSequence` se incluye
+en el validador y se comprueba 1:1 con py‑fsrs.
 
 > Durante esta validación se detectó y corrigió un error real: una tarjeta nueva
 > que permanece en aprendizaje tras la primera respuesta debía pasar a estado
@@ -48,6 +50,17 @@ legacy1.apkg → legacy1, 1 nota / 1 tarjeta       [ok]
 large.apkg   → legacy2, 4000 notas / 4000 tarjetas [ok]
 v3stub.apkg  → v3 detectado (el importador lo rechaza con guía) [ok]
 PASS: 0 failed check(s)
+```
+
+### 1.3 SM‑2
+`scripts/validate_sm2.py` reproduce `SM2Scheduler.updatedEase(...)` (fórmula
+canónica del factor de facilidad) y confirma las expectativas exactas embebidas en
+`SM2SchedulerTests` (p. ej. desde facilidad 2500: Good→2500, Easy→2600,
+Hard→2360, Again→1960; suelo en 1300) y la monotonía de los intervalos.
+
+```
+Good -> 2500, Easy -> 2600, Hard -> 2360, Again -> 1960, suelo -> 1300   [ok]
+PASS: SM-2 expectations verified.
 ```
 
 ---

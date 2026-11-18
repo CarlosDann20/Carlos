@@ -38,7 +38,11 @@
 - **FSRS‑6** (por defecto) y **SM‑2** (alternativa), reales.
 - **Deshacer** la última respuesta; progreso de la sesión; atajos de teclado
   (espacio, 1‑4, z).
-- Respeta suspensión y posposición; detección de *leeches*.
+- **Estudiar de todos modos / adelantar**: cuando no hay nada vencido, permite
+  introducir nuevas por encima del límite y repasar tarjetas que vencen en los
+  próximos días.
+- **Posponer hermanas** (bury siblings) configurable; detección de *leeches*;
+  respeta tarjetas suspendidas.
 
 ## Administración de mazos y tarjetas
 - Pantalla principal con mazos/submazos, contadores de **nuevas/pendientes/
