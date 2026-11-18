@@ -10,6 +10,51 @@ para compilar y entregar la app sin que tú tengas un Mac:
 
 ---
 
+## 0. Resultado REAL de la primera ejecución (léelo primero)
+
+Configuré el CI, hice *push* y **lo ejecuté de verdad**. Resultado comprobado en
+GitHub Actions:
+
+- ✅ **GitHub Actions funciona en tu cuenta** — un job de **Linux** de prueba
+  arrancó y terminó **correctamente**.
+- ❌ **Los runners de macOS NO se asignan a tu cuenta**: `macos-14` se cancela al
+  instante y `macos-13/15/latest` se quedan **encolados sin arrancar nunca**.
+  Como el repositorio es **público** (Linux corre gratis), **no es un problema de
+  minutos ni de facturación**: es una **restricción de los runners macOS** que
+  GitHub aplica a cuentas nuevas sin método de pago verificado.
+
+**Consecuencia honesta:** sin un runner macOS **no pude compilar la app ni
+verificar el código Swift en la nube todavía**. No lo simulo. Hay que desbloquear
+macOS (Opción 1) o usar un CI con máquinas macOS propias (Opción 2).
+
+### Opción 1 (recomendada, la más simple) — Desbloquear macOS en GitHub
+En un repositorio **público**, los minutos de macOS son **gratuitos**, pero GitHub
+exige un **método de pago en el archivo** para habilitar los runners macOS (medida
+antifraude para cuentas nuevas). Normalmente el coste real es **0 €**.
+1. GitHub → tu avatar → **Settings** → **Billing and licensing** → **Payment
+   information** → añade una tarjeta.
+2. (Recomendado) **Settings → Billing → Spending limit**: déjalo en **$0** para no
+   gastar de más; en repo público no consume de ese límite.
+3. Verifica tu correo y activa **2FA** si aún no lo has hecho (ayuda al desbloqueo).
+4. Vuelve a lanzar el CI: **Actions → CI (build & test) → Run workflow** (o haz un
+   push). Para comprobar rápido si ya hay macOS, lanza **Actions → Preflight →
+   Run workflow**: el job `macos` debe ponerse **verde**.
+
+Cuando macOS quede habilitado, **todo lo ya configurado funciona sin tocar nada**
+(`ci.yml` compila y prueba; `testflight.yml` instala en el iPad).
+
+### Opción 2 (si no quieres poner tarjeta en GitHub) — Codemagic
+**Codemagic** (<https://codemagic.io>) tiene **sus propias máquinas macOS** y un
+**plan gratuito (~500 min/mes)**; no depende de los runners de GitHub. El repo ya
+incluye **`codemagic.yaml`** listo.
+1. Entra en codemagic.io e inicia sesión **con GitHub**.
+2. *Add application* → elige `CarlosDann20/Carlos`.
+3. Detecta `codemagic.yaml`; lanza el workflow **build-test** (compila + prueba,
+   sin cuenta Apple). Para instalar en el iPad, configura la clave de App Store
+   Connect en Codemagic y usa el workflow **testflight**.
+
+---
+
 ## 1. CI gratuito (ya configurado — compila y prueba)
 
 Se ejecuta **automáticamente en cada push** a la rama de desarrollo (y se puede

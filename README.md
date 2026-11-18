@@ -66,11 +66,17 @@ CocoaPods, SPM remoto ni ninguna dependencia de terceros.
 
 ### Compilar en la nube sin Mac (GitHub Actions)
 No necesitas un Mac para **compilar y probar**: el repositorio incluye un flujo de
-**GitHub Actions con runner macOS** que compila con Xcode, muestra los errores
-Swift reales, ejecuta los XCTest y publica artefactos (logs, `.xcresult`, IPA sin
-firmar). Se ejecuta en cada push. Para **instalar en el iPad sin Mac** hay un
-segundo flujo que sube a **TestFlight** (requiere cuenta Apple de pago). Todo está
-explicado en **[`docs/CI_Y_FIRMA.md`](docs/CI_Y_FIRMA.md)**.
+**GitHub Actions con runner macOS** (`.github/workflows/ci.yml`) que compila con
+Xcode, muestra los errores Swift reales, ejecuta los XCTest y publica artefactos
+(logs, `.xcresult`, IPA sin firmar). Para **instalar en el iPad sin Mac** hay un
+segundo flujo que sube a **TestFlight** (requiere cuenta Apple de pago).
+
+> ⚠️ **Importante (comprobado en una ejecución real):** los runners **macOS de
+> GitHub están restringidos en esta cuenta** (Linux sí funciona). Hay que
+> **desbloquearlos añadiendo un método de pago** (en repo público el coste suele
+> ser 0 €) **o** usar **Codemagic** (incluido `codemagic.yaml`, máquinas macOS
+> propias, plan gratuito). Pasos exactos y el resultado del diagnóstico en
+> **[`docs/CI_Y_FIRMA.md`](docs/CI_Y_FIRMA.md)**.
 
 ---
 
