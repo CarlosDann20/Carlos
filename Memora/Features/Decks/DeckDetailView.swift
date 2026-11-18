@@ -43,7 +43,7 @@ struct DeckDetailView: View {
         }
         .sheet(isPresented: $showBrowser) { CardBrowserView(deckID: deckID) }
         .sheet(isPresented: $showStats) { StatsView(deckID: deckID) }
-        .sheet(isPresented: $showOptions) { DeckOptionsView(deckID: deck?.configID ?? 1) }
+        .sheet(isPresented: $showOptions) { DeckOptionsView(configID: deck?.configID ?? 1) }
         .confirmationDialog("Exportar mazo", isPresented: $showExportDialog, titleVisibility: .visible) {
             Button("Con historial y programación") { export(scheduling: true) }
             Button("Solo tarjetas (sin programación)") { export(scheduling: false) }
