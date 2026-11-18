@@ -22,3 +22,15 @@ xcuserdata/
 # Python helper caches
 __pycache__/
 *.pyc
+
+# Signing material — NEVER commit these (use GitHub encrypted secrets instead)
+*.p12
+*.p8
+*.pem
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+AuthKey_*.p8
+ExportOptions.plist
+Payload/

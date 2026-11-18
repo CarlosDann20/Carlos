@@ -64,6 +64,14 @@ o **⌘U** en Xcode. Ver [`docs/PRUEBAS.md`](docs/PRUEBAS.md).
 **Requisitos:** macOS con **Xcode 16+**, **iPadOS 17+** como destino. Sin
 CocoaPods, SPM remoto ni ninguna dependencia de terceros.
 
+### Compilar en la nube sin Mac (GitHub Actions)
+No necesitas un Mac para **compilar y probar**: el repositorio incluye un flujo de
+**GitHub Actions con runner macOS** que compila con Xcode, muestra los errores
+Swift reales, ejecuta los XCTest y publica artefactos (logs, `.xcresult`, IPA sin
+firmar). Se ejecuta en cada push. Para **instalar en el iPad sin Mac** hay un
+segundo flujo que sube a **TestFlight** (requiere cuenta Apple de pago). Todo está
+explicado en **[`docs/CI_Y_FIRMA.md`](docs/CI_Y_FIRMA.md)**.
+
 ---
 
 ## Validación ejecutada en este entorno (Python)
@@ -110,6 +118,7 @@ docs/             Arquitectura, manual, funcionalidades, límites, pruebas, firm
 | [`docs/LIMITACIONES.md`](docs/LIMITACIONES.md) | Limitaciones conocidas |
 | [`docs/PRUEBAS.md`](docs/PRUEBAS.md) | Pruebas ejecutadas y resultados |
 | [`docs/INSTALACION_Y_FIRMA.md`](docs/INSTALACION_Y_FIRMA.md) | Instalar en el iPad y requisitos de firma |
+| [`docs/CI_Y_FIRMA.md`](docs/CI_Y_FIRMA.md) | CI en la nube (Actions/macOS), TestFlight e instalación sin Mac |
 | [`docs/LICENCIAS.md`](docs/LICENCIAS.md) | Atribuciones y licencias |
 
 ## Privacidad

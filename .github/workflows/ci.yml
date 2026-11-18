@@ -1,0 +1,154 @@
+name: CI (build & test)
+
+# Compila Memora con Xcode en un runner macOS, muestra errores de compilación
+# Swift reales, ejecuta los XCTest, publica un reporte y sube artefactos
+# descargables. No necesita ninguna cuenta ni secreto de Apple: compila y prueba
+# contra el Simulador de iOS (sin firma).
+
+on:
+  push:
+    branches: ["claude/amazing-pasteur-7bczc8", "main"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Compilar y probar (Simulador iOS)
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Seleccionar Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Versiones de herramientas
+        run: |
+          xcodebuild -version
+          swift --version
+          sw_vers
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Generar el proyecto Xcode
+        run: xcodegen generate
+
+      - name: Elegir un simulador disponible
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available --json | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          cands=[x for runtime,devs in d.items() for x in devs
+                 if x.get('isAvailable') and ('iPad' in x['name'] or 'iPhone' in x['name'])]
+          cands.sort(key=lambda x: (0 if 'iPad' in x['name'] else 1, x['name']))
+          assert cands, 'no simulators available'
+          print(cands[0]['udid']); sys.stderr.write('Using '+cands[0]['name']+'\n')
+          ")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Compilar (build-for-testing)
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project Memora.xcodeproj \
+            -scheme Memora \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log
+
+      - name: Ejecutar pruebas XCTest
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project Memora.xcodeproj \
+            -scheme Memora \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath DerivedData \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee test.log
+
+      - name: Reporte de compilación
+        if: always()
+        run: |
+          {
+            echo "## Reporte de compilación — Memora"
+            echo ""
+            if grep -q "BUILD SUCCEEDED" build.log 2>/dev/null; then
+              echo "- ✅ **Compilación:** BUILD SUCCEEDED"
+            else
+              echo "- ❌ **Compilación:** falló (ver errores abajo)"
+            fi
+            if grep -q "TEST SUCCEEDED" test.log 2>/dev/null; then
+              echo "- ✅ **Pruebas XCTest:** TEST SUCCEEDED"
+            elif grep -q "TEST FAILED" test.log 2>/dev/null; then
+              echo "- ❌ **Pruebas XCTest:** TEST FAILED"
+            else
+              echo "- ⚠️ **Pruebas XCTest:** no se ejecutaron (la compilación falló)"
+            fi
+            echo ""
+            ERRS=$(grep -hE "error:" build.log test.log 2>/dev/null | sort -u | head -80 || true)
+            if [ -n "$ERRS" ]; then
+              echo "### Errores de compilación Swift"
+              echo '```'
+              echo "$ERRS"
+              echo '```'
+            fi
+            PASS=$(grep -hoE "Executed [0-9]+ test" test.log 2>/dev/null | tail -1 || true)
+            [ -n "$PASS" ] && echo "### Resumen de pruebas" && echo '```' && echo "$PASS" && echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Subir logs de compilación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build.log
+            test.log
+
+      - name: Subir resultados de pruebas (.xcresult)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          if-no-files-found: ignore
+
+      - name: Construir .app sin firmar para dispositivo (sideloading)
+        if: success()
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Memora.xcodeproj \
+            -scheme Memora \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath DeviceBuild \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee build-device.log
+          APP=$(find DeviceBuild/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -1)
+          echo "App sin firmar: $APP"
+          rm -rf Payload Memora-unsigned.ipa
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qr Memora-unsigned.ipa Payload
+          ls -la Memora-unsigned.ipa
+
+      - name: Subir IPA sin firmar
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Memora-unsigned-ipa
+          path: Memora-unsigned.ipa
+          if-no-files-found: ignore
