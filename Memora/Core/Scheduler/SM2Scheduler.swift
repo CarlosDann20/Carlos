@@ -54,7 +54,7 @@ public struct SM2Scheduler: CardScheduler {
         var step = card.learningStep
         var ease = card.easeFactor == 0 ? startingEase : card.easeFactor
         var intervalDays = card.intervalDays
-        var reps = card.reps + 1
+        let reps = card.reps + 1
         var lapses = card.lapses
         var interval: NextInterval
 

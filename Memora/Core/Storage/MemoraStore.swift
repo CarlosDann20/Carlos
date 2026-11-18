@@ -13,7 +13,10 @@
 
 import Foundation
 
-public final class MemoraStore {
+// Access is serialised by the app (heavy work on a single background queue
+// behind a modal; SQLite opened with FULLMUTEX), so the store is safe to pass
+// across the GCD boundaries used for import/export/backup.
+public final class MemoraStore: @unchecked Sendable {
     public let db: SQLiteDatabase
     public let mediaDirectory: URL
     public let databaseURL: URL

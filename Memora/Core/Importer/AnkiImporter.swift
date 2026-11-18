@@ -69,7 +69,7 @@ public final class AnkiImporter {
 
         let totalNotes = (try? reader.noteCount()) ?? 0
         let totalCards = (try? reader.cardCount()) ?? 0
-        let totalRev = reader.revlogCount()
+        let totalRev = (try? reader.revlogCount()) ?? 0
         let totalWork = max(1, totalNotes + totalCards + totalRev)
         var processed = 0
 
@@ -173,7 +173,8 @@ public final class AnkiImporter {
                 guard let memoraNoteID = noteIDMap[row.nid] else { return }
                 let memoraDeckID = deckIDMap[row.did] ?? 1
                 var memoraID = row.id
-                if cardIDMap[row.id] != nil || (try store.card(id: memoraID) != nil) { memoraID = store.nextID() }
+                let idCollision = try store.card(id: memoraID) != nil
+                if cardIDMap[row.id] != nil || idCollision { memoraID = store.nextID() }
 
                 let card = convertCard(row, noteID: memoraNoteID, deckID: memoraDeckID,
                                        cardID: memoraID, ankiCrt: col.crt, fsrsFound: &fsrsMemoryFound)
