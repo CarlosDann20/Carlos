@@ -151,6 +151,16 @@ public final class AnkiExporter {
         }
         progress?(0.8)
 
+        // Flush the WAL into collection.anki2 and close the connection BEFORE
+        // reading its bytes. The export DB was opened read-write (hence WAL
+        // mode), so without this the recent INSERTs live only in the
+        // collection.anki2-wal side file and the serialised collection.anki2
+        // would be incomplete — reimport then fails with SQLite code 14
+        // ("unable to open database file"). Closing first also prevents the
+        // temp directory from being unlinked while SQLite still holds it open.
+        try db.flushWALIntoMainFile()
+        db.close()
+
         // Zip everything (no meta → Legacy1).
         let writer = ZipWriter()
         let dbBytes = try Data(contentsOf: dbURL)

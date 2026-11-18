@@ -195,6 +195,40 @@ public final class SQLiteDatabase {
         if let handle { sqlite3_close_v2(handle) }
     }
 
+    /// Explicitly close the underlying connection *now*, rather than waiting
+    /// for ARC to release this object. Idempotent; after calling it the
+    /// instance must not be used for further queries.
+    ///
+    /// This matters for throwaway databases (exports, backup snapshots): the
+    /// file must be fully closed before its bytes are read, copied, or its
+    /// containing temp directory is deleted. Otherwise SQLite is still holding
+    /// the open file descriptors when the directory is removed, which on Darwin
+    /// produces "BUG IN CLIENT OF libsqlite3.dylib: ... vnode unlinked while in
+    /// use" and reads of a half-written file.
+    public func close() {
+        if let h = handle {
+            sqlite3_close_v2(h)
+            handle = nil
+        }
+    }
+
+    /// Checkpoint the write-ahead log into the main database file and switch to
+    /// a rollback journal, so the file on disk becomes a single, self-contained
+    /// database with no `-wal`/`-shm` side files.
+    ///
+    /// Call this on a throwaway database before reading or copying its bytes.
+    /// A WAL-mode database keeps recent writes in its `-wal` side file and
+    /// records "WAL" in the main file's header; if you serialise only the main
+    /// file (or later open it read-only without the side files), SQLite reports
+    /// code 14 "unable to open database file". Flushing the WAL first makes the
+    /// single file complete and portable.
+    public func flushWALIntoMainFile() throws {
+        // `journal_mode=DELETE` performs a checkpoint, writes every WAL page
+        // into the main file, and removes the `-wal`/`-shm` side files.
+        try exec("PRAGMA wal_checkpoint(TRUNCATE);")
+        try exec("PRAGMA journal_mode=DELETE;")
+    }
+
     fileprivate func lastError(context: String) -> SQLiteError {
         let code = sqlite3_errcode(handle)
         let msg = String(cString: sqlite3_errmsg(handle))
@@ -297,6 +331,11 @@ public final class SQLiteDatabase {
 
     /// Back up this database to another file using the SQLite online backup API.
     /// Safe to call while the database is in use.
+    ///
+    /// The destination is left as a single, self-contained file (WAL flushed
+    /// into the main file) and is closed before this method returns, so the
+    /// caller can immediately read or copy `destinationPath` without racing an
+    /// open connection.
     public func backup(to destinationPath: String) throws {
         let dest = try SQLiteDatabase(path: destinationPath)
         guard let backup = sqlite3_backup_init(dest.handle, "main", handle, "main") else {
@@ -308,5 +347,8 @@ public final class SQLiteDatabase {
         if rc != SQLITE_OK && rc != SQLITE_DONE {
             throw dest.lastError(context: "backup")
         }
+        // Collapse the snapshot to a single portable file and release it.
+        try dest.flushWALIntoMainFile()
+        dest.close()
     }
 }

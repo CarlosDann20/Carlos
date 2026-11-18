@@ -81,7 +81,14 @@ public enum BackupManager {
         // Extract + validate the database BEFORE replacing anything.
         let stagedDB = tempDir.appendingPathComponent("collection.sqlite")
         try zip.data(forName: "collection.sqlite").write(to: stagedDB, options: .atomic)
-        let check = try SQLiteDatabase(path: stagedDB.path, readOnly: true).integrityCheck()
+        // Open, check, then close the probe *before* we copy the file and
+        // before the temp directory is removed. Leaving the connection open
+        // would let SQLite hold the file while it is unlinked. The snapshot is
+        // written as a single self-contained file (see backup(to:)), so a
+        // read-only open succeeds without the -wal/-shm side files.
+        let probe = try SQLiteDatabase(path: stagedDB.path, readOnly: true)
+        let check = try probe.integrityCheck()
+        probe.close()
         guard check == "ok" else {
             throw MemoraError.corrupt("La base de datos de la copia está dañada (\(check)); no se restauró nada.")
         }
