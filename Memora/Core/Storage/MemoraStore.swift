@@ -38,13 +38,13 @@ public final class MemoraStore {
         }
     }
 
-    /// Convenience for tests: in-memory database with a temp media dir.
+    /// Convenience for tests / fallback: a throwaway file-backed store in a
+    /// fresh temp directory.
     public static func inMemory() throws -> MemoraStore {
         let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("memora-test-\(UUID().uuidString)")
-        let store = try MemoraStore(databaseURL: URL(fileURLWithPath: ":memory:"),
-                                    mediaDirectory: tmp)
-        return store
+            .appendingPathComponent("memora-tmp-\(UUID().uuidString)")
+        return try MemoraStore(databaseURL: tmp.appendingPathComponent("collection.sqlite"),
+                               mediaDirectory: tmp.appendingPathComponent("media"))
     }
 
     // MARK: - Unique id generation (epoch-ms, collision-free during bulk ops)

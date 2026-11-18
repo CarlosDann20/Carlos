@@ -1,0 +1,73 @@
+# XcodeGen project specification for Memora.
+#
+# Recommended way to (re)generate the Xcode project:
+#     brew install xcodegen
+#     xcodegen generate
+#     open Memora.xcodeproj
+#
+# This file is the source of truth for the project structure; the checked-in
+# Memora.xcodeproj can also be opened directly in Xcode 16+.
+
+name: Memora
+options:
+  bundleIdPrefix: app.memora
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"      # iPhone + iPad (iPad-optimised)
+    DEVELOPMENT_TEAM: ""               # set your Apple Developer Team ID to sign
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+
+targets:
+  Memora:
+    type: application
+    platform: iOS
+    sources:
+      - path: Memora
+        excludes:
+          - "Resources/Info.plist"
+    settings:
+      base:
+        INFOPLIST_FILE: Memora/Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: app.memora.Memora
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: YES
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+
+  MemoraTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MemoraTests
+        excludes:
+          - "Fixtures/**"
+      - path: MemoraTests/Fixtures
+        buildPhase: resources
+    dependencies:
+      - target: Memora
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.memora.MemoraTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Memora:
+    build:
+      targets:
+        Memora: all
+        MemoraTests: [test]
+    test:
+      targets:
+        - MemoraTests
+      gatherCoverageData: true

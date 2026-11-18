@@ -16,68 +16,42 @@ public enum Deflate {
 
     public enum DeflateError: Error { case failed }
 
-    /// Inflate raw DEFLATE data. `expectedSize` sizes the first buffer; the
-    /// routine still works if the real size differs.
     public static func inflate(_ input: Data, expectedSize: Int = 0) throws -> Data {
-        guard !input.isEmpty else { return Data() }
-        var stream = compression_stream(dst_ptr: UnsafeMutablePointer<UInt8>(bitPattern: 1)!,
-                                        dst_size: 0,
-                                        src_ptr: UnsafePointer<UInt8>(bitPattern: 1)!,
-                                        src_size: 0,
-                                        state: nil)
-        var status = compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB)
-        guard status == COMPRESSION_STATUS_OK else { throw DeflateError.failed }
-        defer { compression_stream_destroy(&stream) }
-
-        let bufferSize = max(64 * 1024, min(expectedSize, 4 * 1024 * 1024))
-        let dst = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { dst.deallocate() }
-
-        var output = Data()
-        output.reserveCapacity(expectedSize > 0 ? expectedSize : input.count * 3)
-
-        try input.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
-            guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { throw DeflateError.failed }
-            stream.src_ptr = base
-            stream.src_size = input.count
-            repeat {
-                stream.dst_ptr = dst
-                stream.dst_size = bufferSize
-                status = compression_stream_process(&stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
-                let produced = bufferSize - stream.dst_size
-                if produced > 0 { output.append(dst, count: produced) }
-            } while status == COMPRESSION_STATUS_OK
-        }
-        guard status == COMPRESSION_STATUS_END else { throw DeflateError.failed }
-        return output
+        try process(input, operation: COMPRESSION_STREAM_DECODE,
+                    reserve: expectedSize > 0 ? expectedSize : input.count * 3)
     }
 
-    /// Deflate (compress) to raw DEFLATE data suitable for a ZIP method-8 entry.
     public static func deflate(_ input: Data) throws -> Data {
-        guard !input.isEmpty else { return Data() }
-        var stream = compression_stream(dst_ptr: UnsafeMutablePointer<UInt8>(bitPattern: 1)!,
-                                        dst_size: 0,
-                                        src_ptr: UnsafePointer<UInt8>(bitPattern: 1)!,
-                                        src_size: 0,
-                                        state: nil)
-        var status = compression_stream_init(&stream, COMPRESSION_STREAM_ENCODE, COMPRESSION_ZLIB)
-        guard status == COMPRESSION_STATUS_OK else { throw DeflateError.failed }
-        defer { compression_stream_destroy(&stream) }
+        try process(input, operation: COMPRESSION_STREAM_ENCODE, reserve: input.count / 2 + 64)
+    }
 
-        let bufferSize = 64 * 1024
+    private static func process(_ input: Data, operation: compression_stream_operation, reserve: Int) throws -> Data {
+        guard !input.isEmpty else { return Data() }
+
+        let streamPtr = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
+        defer { streamPtr.deallocate() }
+
+        var status = compression_stream_init(streamPtr, operation, COMPRESSION_ZLIB)
+        guard status == COMPRESSION_STATUS_OK else { throw DeflateError.failed }
+        defer { compression_stream_destroy(streamPtr) }
+
+        let bufferSize = 128 * 1024
         let dst = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
         defer { dst.deallocate() }
 
         var output = Data()
+        output.reserveCapacity(max(reserve, bufferSize))
+
         try input.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { throw DeflateError.failed }
-            stream.src_ptr = base
-            stream.src_size = input.count
+            streamPtr.pointee.src_ptr = base
+            streamPtr.pointee.src_size = input.count
+            let flags = Int32(COMPRESSION_STREAM_FINALIZE.rawValue)
             repeat {
-                stream.dst_ptr = dst
-                stream.dst_size = bufferSize
-                status = compression_stream_process(&stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
-                let produced = bufferSize - stream.dst_size
+                streamPtr.pointee.dst_ptr = dst
+                streamPtr.pointee.dst_size = bufferSize
+                status = compression_stream_process(streamPtr, flags)
+                let produced = bufferSize - streamPtr.pointee.dst_size
                 if produced > 0 { output.append(dst, count: produced) }
             } while status == COMPRESSION_STATUS_OK
         }
